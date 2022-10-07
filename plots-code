@@ -1,0 +1,292 @@
+#libraries to load
+library(BBmisc)
+library(circlize)
+library(corrplot)
+library(data.table)
+library(dynutils)
+library(dplyr)
+library(descr)
+library(eulerr)
+library(foreign)
+library(ggbeeswarm)
+library(ggfortify)
+library(ggplot2)
+library(ggpubr)
+library(ggrepel)
+library(ggsignif)
+library(gplots)
+library(gridExtra)
+library(gtsummary)
+library(hablar)
+library(Hmisc)
+library(lubridate)
+library(pheatmap)
+library(RColorBrewer)
+library(readr)
+library(reshape2)
+library(rstatix)
+library(Rtsne)
+library(scales)
+library(summarytools)
+library(tables)
+library(tidyverse)
+library(VennDiagram)
+library(viridis)
+library(wesanderson)
+
+#set directory
+setwd("C:/Users/delbarri/Google Drive/Senior tech/COVID-19 project/Data analysis/R vaccine")
+
+#read file and assign it a name
+Vaccine <-read_csv("Vaccinemegatable_2021_03_05 v10.csv")
+
+
+#################### take out controls and healthy, and keep only week 3 
+
+Vaccine  <- Vaccine %>%  
+  filter(!Cancer_type_binary%in%c("Control", "Healthy"))%>%  
+  filter(Visit_number==2)
+
+## now we want to keep only the patients we have data for the different studies
+colnames(Vaccine)
+
+#1 for ELISA
+#Options Spike_IgG_EC50_sero N_IgG_OD_sero"
+#I checked both give the same amount of samples
+ELISAonly  <- Vaccine %>%  
+  filter(!is.na(Spike_IgG_EC50_sero))
+
+#2 for neutralisation
+#Options "Neut_WT_IC50_sero"  "Neut_B117_IC50_sero"   
+#I checked both give the same amount of samples
+Neutonly  <- Vaccine %>%  
+  filter(!is.na(Neut_WT_IC50_sero))
+
+#3 T cell assay
+
+Tcellonly  <- Vaccine %>%  
+  filter(!is.na(fluoro_ifng_RBD_permillion))
+
+
+##################################### by treatment #######################################
+
+
+plot1 <- ggplot(ELISAonly,aes(x = Cancer_type_binary,fill = Treatment_15days_around_vaccine_simple)) + 
+  geom_bar(position = "fill")+
+  theme_classic()+
+  theme(axis.text.x=element_text(angle=45,hjust=1,size=10))+
+  theme(strip.text = element_text(size=8))+
+  theme(legend.position = "none")+
+  scale_fill_manual(values=c("Chemo + ICI"="#899DA4",
+                             "Chemotherapy"="#EBCC2A",
+                             "ICI"="#FAEFD1",
+                             "None"="#3B9AB2",
+                             "Other (endocrine/surgery)"="#9A8822",
+                             "Radiotherapy"= "#F5CDB4",
+                             "Targeted therapies"="#F8AFA8",
+                             
+                             "Chemo/targeted + immunotherapy (e.g. anti-CD20, Anti-CD30, Anti-CD38)"="#FDDDA0",
+                             "Chemotherapy + targeted therapy"="#74A089",
+                             "Single agent immune modulation"="#DC863B",
+                             "Single agent mAb (Anti-CD30,Anti-CD20, Anti-CD38)"="#C93312"))+
+  ylab("Proportion")+
+  xlab("Cancer type")+
+  ggtitle("ELISA samples week 3")+
+  geom_text(stat="count",aes(label=ifelse((..count..)>0, ..count.., "")), position = position_fill(vjust=0.5))+
+  scale_y_continuous(labels = scales::percent, breaks = c(0, 0.2, 0.4, 0.6, 0.8, 1))
+
+plot2 <- ggplot(Neutonly,aes(x = Cancer_type_binary,fill = Treatment_15days_around_vaccine_simple)) + 
+  geom_bar(position = "fill")+
+  theme_classic()+
+  theme(axis.text.x=element_text(angle=45,hjust=1,size=10))+
+  theme(strip.text = element_text(size=8))+
+  theme(legend.position = "none")+
+  scale_fill_manual(values=c("Chemo + ICI"="#899DA4",
+                             "Chemotherapy"="#EBCC2A",
+                             "ICI"="#FAEFD1",
+                             "None"="#3B9AB2",
+                             "Other (endocrine/surgery)"="#9A8822",
+                             "Radiotherapy"= "#F5CDB4",
+                             "Targeted therapies"="#F8AFA8",
+                             
+                             "Chemo/targeted + immunotherapy (e.g. anti-CD20, Anti-CD30, Anti-CD38)"="#FDDDA0",
+                             "Chemotherapy + targeted therapy"="#74A089",
+                             "Single agent immune modulation"="#DC863B",
+                             "Single agent mAb (Anti-CD30,Anti-CD20, Anti-CD38)"="#C93312"))+
+  ylab("Proportion")+
+  xlab("Cancer type")+
+  ggtitle("Neutralisation samples week 3")+
+  geom_text(stat="count",aes(label=ifelse((..count..)>0, ..count.., "")), position = position_fill(vjust=0.5))+
+  scale_y_continuous(labels = scales::percent, breaks = c(0, 0.2, 0.4, 0.6, 0.8, 1))
+
+plot3 <- ggplot(Tcellonly,aes(x = Cancer_type_binary,fill = Treatment_15days_around_vaccine_simple)) + 
+  geom_bar(position = "fill")+
+  theme_classic()+
+  theme(axis.text.x=element_text(angle=45,hjust=1,size=10))+
+  theme(strip.text = element_text(size=8))+
+  scale_fill_manual(values=c("Chemo + ICI"="#899DA4",
+                             "Chemotherapy"="#EBCC2A",
+                             "ICI"="#FAEFD1",
+                             "None"="#3B9AB2",
+                             "Other (endocrine/surgery)"="#9A8822",
+                             "Radiotherapy"= "#F5CDB4",
+                             "Targeted therapies"="#F8AFA8",
+                             
+                             "Chemo/targeted + immunotherapy (e.g. anti-CD20, Anti-CD30, Anti-CD38)"="#FDDDA0",
+                             "Chemotherapy + targeted therapy"="#74A089",
+                             "Single agent immune modulation"="#DC863B",
+                             "Single agent mAb (Anti-CD30,Anti-CD20, Anti-CD38)"="#C93312"))+
+  ylab("Proportion")+
+  xlab("Cancer type")+
+  ggtitle("T cell assay samples week 3")+
+  geom_text(stat="count",aes(label=ifelse((..count..)>0, ..count.., "")), position = position_fill(vjust=0.5))+
+  scale_y_continuous(labels = scales::percent, breaks = c(0, 0.2, 0.4, 0.6, 0.8, 1))
+
+grid.arrange(plot1,plot2, plot3, nrow = 1, widths = c(1, 1, 2.3))
+
+g <- arrangeGrob(plot1, plot2, plot3, nrow=1, widths = c(1, 1, 2.3))
+
+ggsave(file="Treatment type by assay type.png", width = 16, height = 8, g)
+dev.off()
+
+
+
+
+
+##################################### by type #######################################
+
+
+plot4 <- ggplot(ELISAonly,aes(x = Cancer_type_binary,fill = Cancer_type_broad)) + 
+  geom_bar(position = "fill")+
+  theme_classic()+
+  theme(axis.text.x=element_text(angle=45,hjust=1,size=10))+
+  theme(strip.text = element_text(size=8))+
+  theme(legend.position = "none")+
+  scale_fill_manual(values=c("Women's Cancers (GyNAe & Breast)"="pink",
+                             "Skin Cancers" =  "yellow3",
+                             "Respiratory Cancers" = "#046C9A",
+                             "GI Cancers"="#FF0000",
+                             "Urological Cancers" ="cornflowerblue",
+                             "Others"="grey",
+                             
+                             "Mature B-cell neoplasm"="pink",
+                             "Myeloid and acute leukaemia neoplasm" =  "yellow3",
+                             "Mature T-cell neoplasm" = "#046C9A", 
+                             "Other"="grey"))+
+  ylab("Proportion")+
+  xlab("Cancer type")+
+  ggtitle("ELISA samples week 3")+
+  geom_text(stat="count",aes(label=ifelse((..count..)>0, ..count.., "")), position = position_fill(vjust=0.5))+
+  scale_y_continuous(labels = scales::percent, breaks = c(0, 0.2, 0.4, 0.6, 0.8, 1))
+
+plot5 <- ggplot(Neutonly,aes(x = Cancer_type_binary,fill = Cancer_type_broad)) + 
+  geom_bar(position = "fill")+
+  theme_classic()+
+  theme(axis.text.x=element_text(angle=45,hjust=1,size=10))+
+  theme(strip.text = element_text(size=8))+
+  theme(legend.position = "none")+
+  scale_fill_manual(values=c("Women's Cancers (GyNAe & Breast)"="pink",
+                             "Skin Cancers" =  "yellow3",
+                             "Respiratory Cancers" = "#046C9A",
+                             "GI Cancers"="#FF0000",
+                             "Urological Cancers" ="cornflowerblue",
+                             "Others"="grey",
+                             
+                             "Mature B-cell neoplasm"="pink",
+                             "Myeloid and acute leukaemia neoplasm" =  "yellow3",
+                             "Mature T-cell neoplasm" = "#046C9A", 
+                             "Other"="grey"))+
+  ylab("Proportion")+
+  xlab("Cancer type")+
+  ggtitle("Neutralisation samples week 3")+
+  geom_text(stat="count",aes(label=ifelse((..count..)>0, ..count.., "")), position = position_fill(vjust=0.5))+
+  scale_y_continuous(labels = scales::percent, breaks = c(0, 0.2, 0.4, 0.6, 0.8, 1))
+
+plot6 <- ggplot(Tcellonly,aes(x = Cancer_type_binary,fill = Cancer_type_broad)) + 
+  geom_bar(position = "fill")+
+  theme_classic()+
+  theme(axis.text.x=element_text(angle=45,hjust=1,size=10))+
+  theme(strip.text = element_text(size=8))+
+  scale_fill_manual(values=c("Women's Cancers (GyNAe & Breast)"="pink",
+                             "Skin Cancers" =  "yellow3",
+                             "Respiratory Cancers" = "#046C9A",
+                             "GI Cancers"="#FF0000",
+                             "Urological Cancers" ="cornflowerblue",
+                             "Others"="grey",
+                             
+                             "Mature B-cell neoplasm"="pink",
+                             "Myeloid and acute leukaemia neoplasm" =  "yellow3",
+                             "Mature T-cell neoplasm" = "#046C9A", 
+                             "Other"="grey"))+
+  ylab("Proportion")+
+  xlab("Cancer type")+
+  ggtitle("T cell assay samples week 3")+
+  geom_text(stat="count",aes(label=ifelse((..count..)>0, ..count.., "")), position = position_fill(vjust=0.5))+
+  scale_y_continuous(labels = scales::percent, breaks = c(0, 0.2, 0.4, 0.6, 0.8, 1))
+
+grid.arrange(plot4,plot5, plot6, nrow = 1, widths = c(1, 1, 1.8))
+
+h <- arrangeGrob(plot4,plot5, plot6, nrow=1, widths = c(1, 1, 1.8))
+
+ggsave(file="Cancer type by assay type.png", width = 12, height = 8, h)
+dev.off()
+
+
+
+
+####################################################
+####################################################
+####################################################
+
+set1 <- paste(rep("word_" , 200) , sample(c(1:1000) , 200 , replace=F) , sep="")
+
+
+IDs_ELISAonly <- ELISAonly%>%
+  select(COVIDIP_ID)
+IDs_ELISAonly <- as.vector(IDs_ELISAonly$COVIDIP_ID)
+
+IDs_Neutonly <- Neutonly%>%
+  select(COVIDIP_ID)
+IDs_Neutonly <- as.vector(IDs_Neutonly$COVIDIP_ID)
+
+IDs_Tcellonly <- Tcellonly%>%
+  select(COVIDIP_ID)
+IDs_Tcellonly <- as.vector(IDs_Tcellonly$COVIDIP_ID)
+
+venn.diagram(
+  x = list(IDs_ELISAonly, IDs_Neutonly, IDs_Tcellonly),
+  category.names = c("ELISA" , "Neutralisation" , "T cell assay"),
+  fill = c("#E69F00", "#56B4E9", "#009E73"),
+  # Numbers
+  cex = .9,
+  fontface = "italic",
+  # Set names
+  cat.cex = 1,
+  cat.fontface = "bold",
+  cat.default.pos = "outer",
+  scaled = TRUE,
+  #save
+  filename = 'Venn_diagramm.png',
+  output=TRUE
+)
+
+
+venn.diagram(
+  x = list(IDs_Neutonly, IDs_Tcellonly),
+  category.names = c("Neutralisation" , "T cell assay"),
+  fill = c("#56B4E9", "#009E73"),
+  # Numbers
+  cex = .9,
+  fontface = "italic",
+  # Set names
+  cat.cex = 1,
+  cat.fontface = "bold",
+  cat.default.pos = "outer",
+  cat.dist = c(0.05, 0.05),
+  cat.pos = c(-150, 150),
+  scaled = TRUE,
+  #save
+  filename = 'Venn_diagramm_mini.png',
+  output=TRUE
+)
+
